@@ -1,0 +1,102 @@
+---
+title: "Panel de intercambio de CoinCap"
+author: "aalvaropc"
+format: dashboard
+---
+
+## Row {height=70%}
+
+```{python}
+#| title: Análisis de datos de métricas de comportamiento de usuarios
+import pandas as pd
+import plotly.express as px
+import os
+# Cargar el archivo CSV
+file_path = f'{os.getenv("AIRFLOW_HOME")}/data/behaviour_metrics.csv'
+
+import duckdb as d
+d.sql(f"create table bm as SELECT * FROM '{file_path}'")
+
+# Consulta para el gasto promedio por cliente
+avg_spent_query = "SELECT AVG(amount_spent) AS average_spent FROM bm;"
+average_spent = d.sql(avg_spent_query).fetchdf()
+
+# Gráfico del gasto promedio por cliente
+fig_avg_spent = px.bar(average_spent, x=['Gasto Promedio'], y='average_spent', title='Gasto Promedio por Cliente',
+                       labels={'x': 'Categoría', 'average_spent': 'Gasto Promedio ($)'}, color_discrete_sequence=['#1f77b4'])
+
+# Mejorar visualmente el gráfico
+fig_avg_spent.update_layout(
+    title_font_size=20,
+    xaxis_title="Categoría",
+    yaxis_title="Gasto Promedio ($)",
+    title_x=0.5,  # Centrar el título horizontalmente
+    title_y=0.95,  # Ajustar la posición vertical del título
+    margin=dict(l=20, r=20, t=50, b=20),  # Ajustar los márgenes del gráfico
+    showlegend=False
+)
+
+#fig_avg_spent.show()
+
+
+```
+
+## Row {height=30%}
+
+```{python}
+#| title: Distribución del gasto de los usuarios
+import pandas as pd
+import plotly.express as px
+import os
+# Cargar el archivo CSV
+file_path = f'{os.getenv("AIRFLOW_HOME")}/data/behaviour_metrics.csv'
+
+import duckdb as d
+d.sql(f"create table bm2 as SELECT * FROM '{file_path}'")
+
+# Consulta para la distribución del gasto
+spending_dist_query = """
+WITH binned_data AS (
+    SELECT 
+        amount_spent,
+        CASE 
+            WHEN amount_spent < 10000 THEN '0-9999'
+            WHEN amount_spent >= 10000 AND amount_spent < 20000 THEN '10000-19999'
+            WHEN amount_spent >= 20000 AND amount_spent < 30000 THEN '20000-29999'
+            WHEN amount_spent >= 30000 AND amount_spent < 40000 THEN '30000-39999'
+            WHEN amount_spent >= 40000 AND amount_spent < 50000 THEN '40000-49999'
+            WHEN amount_spent >= 50000 AND amount_spent < 60000 THEN '50000-59999'
+            WHEN amount_spent >= 60000 AND amount_spent < 70000 THEN '60000-69999'
+            WHEN amount_spent >= 70000 AND amount_spent < 80000 THEN '70000-79999'
+            WHEN amount_spent >= 80000 AND amount_spent < 90000 THEN '80000-89999'
+            ELSE '90000+'
+        END AS spending_bin
+    FROM bm2
+)
+SELECT 
+    spending_bin,
+    COUNT(*) AS count
+FROM binned_data
+GROUP BY spending_bin
+ORDER BY spending_bin;
+"""
+spending_distribution = d.sql(spending_dist_query).fetchdf()
+
+# Gráfico de la distribución del gasto
+fig_spending_dist = px.bar(spending_distribution, x='spending_bin', y='count', title='Distribución del Gasto',
+                           labels={'spending_bin': 'Rango de Gasto ($)', 'count': 'Número de Clientes'}, color_discrete_sequence=['#2ca02c'])
+
+# Mejorar visualmente el gráfico
+fig_spending_dist.update_layout(
+    title_font_size=20,
+    xaxis_title="Rango de Gasto ($)",
+    yaxis_title="Número de Clientes",
+    title_x=0.5,  # Centrar el título horizontalmente
+    title_y=0.95,  # Ajustar la posición vertical del título
+    margin=dict(l=20, r=20, t=50, b=20),  # Ajustar los márgenes del gráfico
+    showlegend=False
+)
+
+#fig_spending_dist.show()
+
+```
